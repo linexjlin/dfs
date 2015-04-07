@@ -83,6 +83,7 @@ func openFile(fn string) *os.File {
 //处理接到的文件名，查找请求并反馈
 func clientConn(needNewChan chan bool) {
 	c := getConn()
+	defer c.Close()
 	reader := bufio.NewReader(c)
 
 	fndata, _, _ := reader.ReadLine()
@@ -94,7 +95,7 @@ func clientConn(needNewChan chan bool) {
 	if !fExist(filename) {
 		lg.Println("the file can't find, socket close")
 		c.Write([]byte("0"))
-		c.Close()
+
 	} else {
 		lg.Println("found file!")
 
@@ -103,9 +104,11 @@ func clientConn(needNewChan chan bool) {
 		f := openFile(filename)
 		fileToTcp(c, f)
 		f.Close()
-		lg.Println("socket close")
-		c.Close()
+
 	}
+	c.Close()
+	lg.Println(c.LocalAddr(), c.RemoteAddr())
+	lg.Println("socket close")
 }
 
 var lg = log.New(os.Stdout, " ", log.LstdFlags|log.Llongfile)

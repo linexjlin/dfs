@@ -12,8 +12,10 @@ import (
 var sockets = make([]net.Conn, 0)
 var sLock sync.Mutex
 
-func tcpFileToHTTP(httpWriter io.Writer, fileReceiver io.Reader) error {
+func tcpFileToHTTP(httpWriter http.ResponseWriter, fileReceiver net.Conn) error {
 	_, e := io.Copy(httpWriter, fileReceiver)
+	lg.Println(fileReceiver.LocalAddr(), fileReceiver.RemoteAddr())
+	fileReceiver.Close()
 	return e
 }
 
@@ -22,8 +24,8 @@ func getFileName(fn string) string {
 }
 
 //根据返回的reader 判断是否找到了文件
-func findFile(fn string) (io.Reader, bool) {
-	found := false
+func findFile(fn string) (conn net.Conn, found bool) {
+	found = false
 	if len(sockets) == 0 {
 		lg.Println("no client connected!")
 		return nil, found
@@ -41,7 +43,7 @@ func findFile(fn string) (io.Reader, bool) {
 }
 
 //扫描客户端判断看看有没有结果
-func getFileReader(fn string) io.Reader {
+func getFileReader(fn string) net.Conn {
 	//lock to copy current sockets.
 	sLock.Lock()
 	tmpSockets := sockets
