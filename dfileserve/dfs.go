@@ -12,11 +12,11 @@ import (
 var sockets = make([]net.Conn, 0)
 var sLock sync.Mutex
 
-func tcpFileToHTTP(httpWriter http.ResponseWriter, fileReceiver net.Conn) error {
-	_, e := io.Copy(httpWriter, fileReceiver)
-	lg.Println(fileReceiver.LocalAddr(), fileReceiver.RemoteAddr())
+func tcpFileToHTTP(httpWriter http.ResponseWriter, fileReceiver net.Conn) (n int64, e error) {
+	n, e = io.Copy(httpWriter, fileReceiver)
+	lg.Println("Close the transportation socket", fileReceiver.LocalAddr(), fileReceiver.RemoteAddr())
 	fileReceiver.Close()
-	return e
+	return n, e
 }
 
 func getFileName(fn string) string {
@@ -83,6 +83,18 @@ func getFileReader(fn string) net.Conn {
 		//lg.Println("receive:")
 	}
 
+	//将所有后续socket全 close,直到接到nil
+	go func() {
+		for {
+			ts := <-c
+			if ts == nil {
+				break
+			} else {
+				ts.Close()
+			}
+		}
+	}()
+
 	//将用掉的socket 删除掉
 	sLock.Lock()
 	lg.Println("befor truncate length is :", len(sockets))
@@ -95,34 +107,31 @@ func getFileReader(fn string) net.Conn {
 
 //发送文件名，并将结果通过 Conn chan跟 int chan 发给上级调用函数
 func sendNameGetReader(s net.Conn, fn string, c chan net.Conn, cnt chan int) error {
-	s.Write([]byte(fn + "\r\n")) //
+
+	s.Write([]byte(fn + "\r\n"))
 	b := make([]byte, 1)
-	lg.Println("wait to read one byte from socket...")
 
-	//tcp 读是阻塞的
-	for {
-		n, _ := s.Read(b)
-		lg.Println("receive:", n, "bytes")
-		lg.Println("the byte is", string(b))
+	lg.Println("Wait to read one byte from socket...")
+	//tcp读一个反馈字符判断是否找到文件如果没找到，关闭socket，找到了就通过chan装这个conn发级上级调用
+	n, _ := s.Read(b)
+	lg.Println("The byte is", string(b))
 
-		//收到客户端的字符0表示没找到文件
-		if string(b) == "0" {
-			lg.Println("file no found")
-			cnt <- 1
-			break
-		}
-
-		if n > 0 {
-			c <- s
-			cnt <- 1
-			break
-		} else { //收不到客户端的结果了表示收不到
+	if n > 0 {
+		switch string(b) {
+		case "0": //客户端没有找到文件
 			cnt <- 1
 			s.Close()
-			break
+		case "1": //客户端找到了文件
+			c <- s
+			cnt <- 1
+		default: //其它情况
 		}
+	} else { //收不到客户端的结果了表示收不到
+		cnt <- 1
+		s.Close()
 	}
-	lg.Println("go routine,finish")
+
+	lg.Println("routine ", s.LocalAddr(), s.RemoteAddr(), " finish!")
 	return nil
 }
 

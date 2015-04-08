@@ -36,9 +36,10 @@ func getConn() net.Conn {
 			lg.Println("can't not dial. wait 3 second to retry...")
 			time.Sleep(time.Second * 3)
 		} else {
-			lg.Println("new connection estabinished")
+			lg.Println("New connection estabinished: ", c.LocalAddr(), c.RemoteAddr())
 			break
 		}
+
 	}
 	return c
 }
@@ -90,10 +91,10 @@ func clientConn(needNewChan chan bool) {
 	needNewChan <- true //to make next connection
 	os.Chdir(basedir)
 	filename := basedir + string(fndata)
-	lg.Println("the file name is:", filename)
+	lg.Println("The file name is:", filename)
 
 	if !fExist(filename) {
-		lg.Println("the file can't find, socket close")
+		lg.Println("The file can't find, socket close")
 		c.Write([]byte("0"))
 
 	} else {
@@ -107,8 +108,7 @@ func clientConn(needNewChan chan bool) {
 
 	}
 	c.Close()
-	lg.Println(c.LocalAddr(), c.RemoteAddr())
-	lg.Println("socket close")
+	lg.Println("socket close:", c.LocalAddr(), c.RemoteAddr())
 }
 
 var lg = log.New(os.Stdout, " ", log.LstdFlags|log.Llongfile)
