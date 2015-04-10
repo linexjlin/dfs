@@ -147,7 +147,7 @@ func ServeAll(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-var lg = log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Llongfile)
+var lg = log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Lshortfile)
 
 func main() {
 	l, _ := net.Listen("tcp", ":8612")
@@ -156,8 +156,8 @@ func main() {
 			s, _ := l.Accept()
 			defer s.Close()
 			sLock.Lock()
+			lg.Println("New socket come in", s.LocalAddr(), s.RemoteAddr(), " current sockets length:", len(sockets))
 			sockets = append(sockets, s)
-			lg.Println("New socket coming, current sockets length:", len(sockets))
 			sLock.Unlock()
 
 		}

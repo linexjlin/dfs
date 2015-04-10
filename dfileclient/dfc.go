@@ -111,7 +111,7 @@ func clientConn(needNewChan chan bool) {
 	lg.Println("socket close:", c.LocalAddr(), c.RemoteAddr())
 }
 
-var lg = log.New(os.Stdout, " ", log.LstdFlags|log.Llongfile)
+var lg = log.New(os.Stdout, " ", log.LstdFlags|log.Lshortfile)
 var serveType string
 
 //处理命令行参数
