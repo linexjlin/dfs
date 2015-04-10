@@ -134,6 +134,7 @@ func ServeAll(rw http.ResponseWriter, r *http.Request) {
 
 	if r.URL.Path == "/" {
 		http.NotFound(rw, r)
+		return
 	}
 
 	fileName := getFileName(r.URL.Path)
