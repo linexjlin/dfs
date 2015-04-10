@@ -131,6 +131,11 @@ func sendNameGetReader(s net.Conn, fn string, c chan net.Conn, cnt chan int) err
 //处理发送过来的请求
 func ServeAll(rw http.ResponseWriter, r *http.Request) {
 	lg.Println("Current URL is:", r.URL.Path)
+
+	if r.URL.Path == "/" {
+		http.NotFound(rw, r)
+	}
+
 	fileName := getFileName(r.URL.Path)
 	fileReceiver, found := findFile(fileName)
 	if found {
