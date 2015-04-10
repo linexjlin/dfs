@@ -47,6 +47,7 @@ func getFileReader(fn string) net.Conn {
 	//lock to copy current sockets.
 	sLock.Lock()
 	tmpSockets := sockets
+	sockets = sockets[len(tmpSockets):] //一定马上将sockets删掉，防止被重复利用
 	sLock.Unlock()
 
 	c := make(chan net.Conn) //通过chan 接收返回的连接
@@ -65,10 +66,9 @@ func getFileReader(fn string) net.Conn {
 			<-cnt
 			j++
 			lg.Println("get ", j, " of ", maxcnt)
-			//			maxcnt--
 			if j >= maxcnt {
 				lg.Println("scan sockets finished!")
-				c <- nil //返回nil 给filereader
+				c <- nil //扫完所有socket后，返回nil 给filereader
 				break
 			}
 		}
@@ -83,7 +83,7 @@ func getFileReader(fn string) net.Conn {
 		//lg.Println("receive:")
 	}
 
-	//将所有后续socket全 close,直到接到nil
+	//将所有后续sockets全 close, 直到接到nil
 	go func() {
 		for {
 			ts := <-c
@@ -94,13 +94,6 @@ func getFileReader(fn string) net.Conn {
 			}
 		}
 	}()
-
-	//将用掉的socket 删除掉
-	sLock.Lock()
-	lg.Println("befor truncate length is :", len(sockets))
-	sockets = sockets[maxcnt:]
-	lg.Println("after truncate length is", len(sockets))
-	sLock.Unlock()
 
 	return fr
 }
@@ -137,7 +130,7 @@ func sendNameGetReader(s net.Conn, fn string, c chan net.Conn, cnt chan int) err
 
 //处理发送过来的请求
 func ServeAll(rw http.ResponseWriter, r *http.Request) {
-	lg.Println("ServeAll function")
+	lg.Println("Current URL is:", r.URL.Path)
 	fileName := getFileName(r.URL.Path)
 	fileReceiver, found := findFile(fileName)
 	if found {
