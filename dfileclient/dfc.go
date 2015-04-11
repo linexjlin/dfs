@@ -84,11 +84,19 @@ func openFile(fn string) *os.File {
 //处理接到的文件名，查找请求并反馈
 func clientConn(needNewChan chan bool) {
 	c := getConn()
+	//设置读取超时，服务器端已经做了5分钟刷新的动作，这里这个超时是为了防止有些请况下客户端
+	//接收不到这个信号还以为自己连在服务器上这种情况，实际上会发生的，之前的代码在2小时后，
+	//服务器端断开与客户端的连接，这是tcp底层实现的。 这个应用层无法发觉。
+	c.SetReadDeadline(time.Now().Add(time.Second * 60 * 6))
 	defer c.Close()
 	reader := bufio.NewReader(c)
-
-	fndata, _, _ := reader.ReadLine()
+	fndata, _, e := reader.ReadLine()
 	needNewChan <- true //to make next connection
+	if e != nil {
+		lg.Println("Server close socket", c.LocalAddr())
+		c.Close()
+		return
+	}
 	os.Chdir(basedir)
 	filename := basedir + string(fndata)
 	lg.Println("The file name is:", filename)
@@ -105,7 +113,6 @@ func clientConn(needNewChan chan bool) {
 		f := openFile(filename)
 		fileToTcp(c, f)
 		f.Close()
-
 	}
 	c.Close()
 	lg.Println("socket close:", c.LocalAddr(), c.RemoteAddr())

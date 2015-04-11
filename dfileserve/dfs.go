@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"sync"
+	"time"
 )
 
 var sockets = make([]net.Conn, 0)
@@ -94,7 +95,6 @@ func getFileReader(fn string) net.Conn {
 			}
 		}
 	}()
-
 	return fr
 }
 
@@ -146,6 +146,31 @@ func ServeAll(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
+////将所的超时socket干掉
+//func truncSockets() {
+//	if len(sockets) == 0 {
+//		return
+//	}
+//	sLock.Lock()
+//	tmpSockets := sockets
+//	sockets = sockets[len(tmpSockets):] //一定马上将sockets删掉，防止被重复利用
+//	sLock.Unlock()
+//	for _, s := range tmpSockets {
+//		s.Close()
+//	}
+//	return
+//}
+
+//发送空文件名来刷新客户端。
+func refreshSockets() {
+	for {
+		select {
+		case <-time.After(time.Second * 60 * 3):
+			findFile("xxx") //暂时使用的方法
+		}
+	}
+}
+
 var lg = log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Lshortfile)
 
 func main() {
@@ -155,13 +180,12 @@ func main() {
 			s, _ := l.Accept()
 			defer s.Close()
 			sLock.Lock()
-			lg.Println("New socket come in", s.LocalAddr(), s.RemoteAddr(), " current sockets length:", len(sockets))
 			sockets = append(sockets, s)
+			lg.Println("New socket come in", s.LocalAddr(), s.RemoteAddr(), " current sockets length:", len(sockets))
 			sLock.Unlock()
-
 		}
 	}()
-
+	go refreshSockets()
 	h := http.HandlerFunc(ServeAll)
 	http.ListenAndServe(":8701", h)
 }
